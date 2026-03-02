@@ -367,6 +367,14 @@ def get_all_deals():
     return [dict(d) for d in deals]
 
 
+def activate_deal(deal_id):
+    conn = get_db()
+    conn.execute("UPDATE deals SET active = 0")
+    conn.execute("UPDATE deals SET active = 1 WHERE id = ?", (deal_id,))
+    conn.commit()
+    conn.close()
+
+
 # =============================================
 # EMAIL / REPORT GENERATION
 # =============================================
@@ -545,13 +553,22 @@ def render_admin_panel():
         for d in all_deals:
             is_active = d["active"] == 1
             label = f"{'[ACTIVE] ' if is_active else ''}{d['name']}"
-            col_label, col_clear, col_del = st.columns([3, 1, 1])
+            if is_active:
+                col_label, col_clear, col_del = st.columns([3, 1, 1])
+            else:
+                col_label, col_activate, col_clear, col_del = st.columns([2.5, 1, 1, 1])
             with col_label:
                 color = "#4caf50" if is_active else "#8888aa"
                 st.markdown(
                     f'<span style="color:{color}; font-weight:{"700" if is_active else "400"}; line-height:2.4;">{label}</span>',
                     unsafe_allow_html=True,
                 )
+            if not is_active:
+                with col_activate:
+                    if st.button("Activate", key=f"activate_{d['id']}", type="primary"):
+                        activate_deal(d["id"])
+                        st.success(f"'{d['name']}' is now active!")
+                        st.rerun()
             with col_clear:
                 if st.button("Clear Votes", key=f"clear_{d['id']}"):
                     delete_votes(d["id"])
